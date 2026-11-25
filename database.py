@@ -14,6 +14,27 @@ import sqlite3
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "data", "kickoff.db")
 
+# Official Bulgarian transliteration (the law from 2009): Cyrillic -> Latin.
+BG_TO_LATIN = {
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ж": "zh",
+    "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m", "н": "n",
+    "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u", "ф": "f",
+    "х": "h", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "sht", "ъ": "a", "ь": "y",
+    "ю": "yu", "я": "ya",
+}
+
+
+def to_latin(text):
+    """'Люлин' -> 'lyulin', 'Lyulin' -> 'lyulin'. Used only for COMPARING text.
+
+    Names are stored and shown in Bulgarian. But SQLite's LIKE ignores
+    upper/lower case only for Latin letters ('люлин' would not match 'Люлин'),
+    so for searching we turn both sides into lowercase Latin.
+    """
+    if text is None:
+        return ""
+    return "".join(BG_TO_LATIN.get(letter, letter) for letter in text.lower())
+
 
 def get_connection():
     """Open a connection to the database.
@@ -25,6 +46,8 @@ def get_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # Make our Python function to_latin() usable inside SQL as TO_LATIN(...)
+    conn.create_function("TO_LATIN", 1, to_latin)
     return conn
 
 
