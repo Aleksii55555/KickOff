@@ -10,7 +10,7 @@ to turn into JSON and send to the AI.
 
 from datetime import datetime, timedelta
 
-from database import get_connection
+from database import get_connection, to_latin
 
 TIME_FORMAT = "%Y-%m-%d %H:%M"
 MAX_RESULTS = 10
@@ -47,7 +47,8 @@ def search_free_slots(date_from=None, date_to=None, earliest_hour=0, latest_hour
 
     date_from, date_to: 'YYYY-MM-DD' (both included). Optional.
     earliest_hour, latest_hour: only slots that START between these hours.
-    field_name: optional, part of the field's name, e.g. 'Mladost'.
+    field_name: optional, part of the field's name OR address,
+                e.g. 'Mladost', 'Младост' or 'люлин'.
     """
     date_from, date_to = _default_dates(date_from, date_to)
     now = datetime.now().strftime(TIME_FORMAT)
@@ -65,8 +66,12 @@ def search_free_slots(date_from=None, date_to=None, earliest_hour=0, latest_hour
     params = [now, date_from, date_to, earliest_hour, latest_hour]
 
     if field_name:
-        sql += " AND fields.name LIKE ?"
-        params.append(f"%{field_name}%")
+        # Compare both sides in the same simple form (Latin, lowercase), so
+        # 'Люлин', 'люлин' and 'Lyulin' all match 'Футболна база Люлин'.
+        # TO_LATIN is our Python function, registered in database.py.
+        search = f"%{to_latin(field_name)}%"
+        sql += " AND (TO_LATIN(fields.name) LIKE ? OR TO_LATIN(fields.address) LIKE ?)"
+        params += [search, search]
 
     sql += " ORDER BY slots.start_time LIMIT ?"
     params.append(MAX_RESULTS)

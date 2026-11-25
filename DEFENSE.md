@@ -64,3 +64,54 @@ conversation is sent every time. Step 9 shortens old history to keep this low.
 
 **How we tested it.** `GROQ_API_KEY=wrong`, `GROQ_MODEL=no-such-model` and
 `LLM_TIMEOUT=0.01` - each gives a clear message instead of a crash.
+
+---
+
+## Step 4: minimal website (`app.py`)
+
+**Why Streamlit.** A web page written in plain Python - no HTML, CSS or JavaScript.
+Good for a prototype; the whole page is ~60 lines.
+
+**How the code is split now:**
+
+| File | Job |
+|---|---|
+| `llm.py` | talks to Groq (timeout, retries, cost) |
+| `assistant.py` | the "brain": system prompt + tool calling loop |
+| `chat.py` | terminal interface |
+| `app.py` | website interface |
+
+Both interfaces use the same `ask_assistant()` - the logic is written once.
+
+**How Streamlit works.** The whole `app.py` runs from top to bottom every time the
+user sends a message or clicks a button. Normal variables are lost between runs,
+so the conversation is kept in `st.session_state` (a dictionary that survives).
+
+**What the page shows.** Only the user's questions and the AI's answers. The tool
+calls and tool results are also in the conversation (the AI needs them), but we
+skip them when drawing the page.
+
+**Errors.** Same as the terminal: an `LLMError` (rate limit, timeout, wrong key)
+is shown as a red box, and the failed turn is removed from the conversation.
+
+**A real bug we found and fixed (good example for the defence).**
+Asking about "Долно Малене" crashed the page with
+`'charmap' codec can't encode characters`. The cause was not the AI: we print every
+tool call to the terminal, and the Windows terminal uses an old encoding (cp1252) with
+no Cyrillic letters. Fix: `sys.stdout.reconfigure(encoding="utf-8", errors="replace")`
+in `assistant.py`. Even if a character still cannot be printed, it becomes "?" instead
+of a crash.
+
+**The AI knows which fields exist.** The system prompt now lists all fields from the
+database. Asked about a place where we have no field, it says so and offers the
+fields we have, instead of asking for a day and time.
+
+**Names are stored in Bulgarian, the search ignores the alphabet and case.**
+Fields, addresses and games are stored in Bulgarian ("Спорт Парк Лозенец"), so the AI
+shows them exactly like that - no translating. One problem: SQLite's `LIKE` ignores
+upper/lower case only for Latin letters, so "лозенец" would not find "Лозенец".
+Solution: `to_latin()` in `database.py` turns text into lowercase Latin with the
+official Bulgarian transliteration table, and is used ONLY for comparing. We register
+it in SQLite (`conn.create_function("TO_LATIN", 1, to_latin)`) and compare
+`TO_LATIN(fields.name) LIKE '%lozenets%'`. So "Лозенец", "лозенец", "ЛОЗЕНЕЦ" and
+"Lozenets" all find the field. This is done in code - we do not rely on the AI.

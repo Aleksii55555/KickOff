@@ -15,13 +15,13 @@ from database import DB_PATH, create_tables, get_connection
 
 TIME_FORMAT = "%Y-%m-%d %H:%M"
 
-USERS = ["Alex", "Maria", "Ivan", "Georgi"]
+USERS = ["Алекс", "Мария", "Иван", "Георги"]
 
 # name, address, surface, capacity, price per hour (BGN)
 FIELDS = [
-    ("Arena Mladost", "Sofia, Mladost 1, bul. Andrey Lyapchev 10", "artificial grass", 12, 120),
-    ("Sport Park Lozenets", "Sofia, Lozenets, ul. Krastyo Sarafov 5", "artificial grass", 12, 100),
-    ("Futbolna Baza Lyulin", "Sofia, Lyulin 5, ul. Pancho Vladigerov 20", "rubber", 10, 80),
+    ("Арена Младост", "София, Младост 1, бул. Андрей Ляпчев 10", "изкуствена трева", 12, 120),
+    ("Спорт Парк Лозенец", "София, Лозенец, ул. Кръстьо Сарафов 5", "изкуствена трева", 12, 100),
+    ("Футболна база Люлин", "София, Люлин 5, ул. Панчо Владигеров 20", "гумена настилка", 10, 80),
 ]
 
 
@@ -72,10 +72,10 @@ def seed():
     # --- open games ---
     # (field_id, days from tomorrow, hour, organizer_id, name, level, joined)
     games = [
-        (1, 0, 19, 2, "Evening kickabout", "intermediate", 7),
-        (2, 1, 20, 3, "Lozenets evening game", "beginner", 10),
-        (1, 2, 18, 4, "Fast and friendly", "advanced", 4),
-        (3, 3, 19, 2, "Lyulin small game", "beginner", 6),
+        (1, 0, 19, 2, "Вечерен мач", "intermediate", 7),
+        (2, 1, 20, 3, "Петъчна игра в Лозенец", "beginner", 10),
+        (1, 2, 18, 4, "Бързо и приятелски", "advanced", 4),
+        (3, 3, 19, 2, "Малък мач в Люлин", "beginner", 6),
     ]
     now = datetime.now()
     for field_id, day, hour, organizer_id, name, level, joined in games:

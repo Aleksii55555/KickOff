@@ -36,7 +36,7 @@ TOOLS = [
                 "type": "object",
                 "properties": {
                     **DATE_AND_HOUR_ARGS,
-                    "field_name": {"type": "string", "description": "Optional part of a field name, e.g. 'Mladost'."},
+                    "field_name": {"type": "string", "description": "Optional field name or neighbourhood, Cyrillic or Latin, e.g. 'Mladost' or 'Люлин'."},
                 },
                 "required": [],
             },
