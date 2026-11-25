@@ -21,7 +21,7 @@ Not used: `bggpt:4b` - no tool calling support in Ollama, too small for an agent
 - [x] **Step 2** - Terminal chat with tool calling (`search_free_slots`, `search_open_games`, `get_my_bookings`).
 
 ### Phase 2 - Integration
-- [ ] **Step 3** - Reliable LLM layer (`llm.py`):
+- [x] **Step 3** - Reliable LLM layer (`llm.py`):
   all Groq calls in one place, timeout + retry with backoff (rate limit!), clear error
   messages instead of freezing, tokens and cost of every turn.
 - [ ] **Step 4** - Booking with human approval (HITL, enforced by the server):
@@ -59,6 +59,8 @@ Not used: `bggpt:4b` - no tool calling support in Ollama, too small for an agent
 - `bookings.py` - read-only search functions (used as AI tools)
 - `tools.py` - tool descriptions (JSON Schema) for the AI + `run_tool` dispatcher
 - `chat.py` - terminal chat: `py chat.py`
+- `llm.py` - all AI calls: timeout, retries, clear errors, token and cost counting
+- `DEFENSE.md` - explanations and answers for the defence
 
 ## Setup
 1. `py -m pip install -r requirements.txt`
