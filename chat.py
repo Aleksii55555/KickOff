@@ -1,8 +1,8 @@
 """
-chat.py - talk to the KickOff assistant in the terminal (step 2).
+chat.py - talk to the KickOff assistant in the terminal.
 
 Run:
-    python chat.py
+    py chat.py
 Type 'exit' to quit.
 
 How one turn works:
@@ -11,23 +11,18 @@ How one turn works:
 3. If it asks for tools, we run them, add the results to the conversation
    and go back to 1.
 4. To avoid endless loops, we allow at most MAX_TOOL_CALLS per turn.
+   After that the AI must answer with what it has.
+
+All talking to the AI provider happens in llm.py.
 """
 
-import os
 from datetime import datetime, timedelta
 
-from dotenv import load_dotenv
-from groq import Groq
-
+from llm import MODEL, LLMError, Usage, call_model
 from tools import TOOLS, run_tool
 
-load_dotenv()  # reads GROQ_API_KEY and GROQ_MODEL from the .env file
-
-MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 MAX_TOOL_CALLS = 6
-CURRENT_USER_ID = 1  # "Alex". In the web UI (step 4) you will be able to switch users.
-
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+CURRENT_USER_ID = 1  # "Alex". In the web UI you will be able to switch users.
 
 
 def system_prompt():
@@ -58,22 +53,26 @@ Rules:
 - Keep answers short. Do not translate field names and addresses."""
 
 
-def ask_assistant(messages):
-    """Run one turn: call the AI, run tools if needed, return the final text."""
+def ask_assistant(messages, usage):
+    """Run one turn: call the AI, run tools if needed, return the final text.
+
+    usage collects the tokens of all AI calls in this turn.
+    """
     tool_calls_used = 0
 
     while True:
-        response = client.chat.completions.create(
-            model=MODEL,
-            messages=[{"role": "system", "content": system_prompt()}] + messages,
-            tools=TOOLS,
+        message = call_model(
+            [{"role": "system", "content": system_prompt()}] + messages,
+            TOOLS,
+            usage,
+            allow_tools=tool_calls_used < MAX_TOOL_CALLS,  # limit reached -> text only
         )
-        message = response.choices[0].message
 
         # Case 1: no tools requested -> this is the final answer.
         if not message.tool_calls:
-            messages.append({"role": "assistant", "content": message.content})
-            return message.content
+            answer = message.content or "Sorry, I could not prepare an answer. Please try again."
+            messages.append({"role": "assistant", "content": answer})
+            return answer
 
         # Case 2: the AI wants tools. First save its request in the history.
         messages.append({
@@ -92,11 +91,8 @@ def ask_assistant(messages):
         # Then run every requested tool and add its result.
         for call in message.tool_calls:
             tool_calls_used += 1
-            if tool_calls_used > MAX_TOOL_CALLS:
-                result = '{"error": "Tool limit reached. Answer with what you have."}'
-            else:
-                print(f"   [tool] {call.function.name}({call.function.arguments})")
-                result = run_tool(call.function.name, call.function.arguments, CURRENT_USER_ID)
+            print(f"   [tool] {call.function.name}({call.function.arguments})")
+            result = run_tool(call.function.name, call.function.arguments, CURRENT_USER_ID)
             messages.append({"role": "tool", "tool_call_id": call.id, "content": result})
 
 
@@ -113,13 +109,19 @@ def main():
 
         length_before = len(messages)
         messages.append({"role": "user", "content": user_text})
+        usage = Usage()
         try:
-            answer = ask_assistant(messages)
-            print(f"\nKickOff: {answer}\n")
-        except Exception as error:
-            # e.g. no internet, wrong API key, rate limit
-            print(f"\n[error] {error}\n")
+            answer = ask_assistant(messages, usage)
+            print(f"\nKickOff: {answer}")
+        except LLMError as error:
+            # A problem we know how to explain (rate limit, timeout, wrong key...)
+            print(f"\n[error] {error}")
             del messages[length_before:]  # forget this whole failed turn
+        except Exception as error:
+            # Anything unexpected - show it, but keep the chat running.
+            print(f"\n[unexpected error] {type(error).__name__}: {error}")
+            del messages[length_before:]
+        print(f"   [cost] {usage.summary()}\n")
 
 
 if __name__ == "__main__":
